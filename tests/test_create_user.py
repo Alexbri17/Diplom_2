@@ -2,6 +2,7 @@ import pytest
 import allure
 import copy
 from api.user_api import UserApiClient
+from helpers import extract_access_token_from_response
 
 
 @allure.suite("Регистрация новых пользователей")
@@ -21,21 +22,28 @@ class TestUserRegistration:
         assert "name" in response_data["user"], "Поле 'name' отсутствует в объекте user"
         assert "accessToken" in response_data, "Отсутствует accessToken"
         assert "refreshToken" in response_data, "Отсутствует refreshToken"
+        
+        access_token = extract_access_token_from_response(response_data)
+        if access_token:
+            api_client.delete_user(access_token)
 
     @allure.title("Повторная регистрация того же пользователя возвращает 403 с сообщением 'User already exists'")
     def test_register_existing_user_returns_403_conflict(self, new_user_credentials):
         api_client = UserApiClient()
         
-        # Первая регистрация — успешна
-        api_client.register_new_customer(new_user_credentials)
+        first_response = api_client.register_new_customer(new_user_credentials)
+        first_response_data = first_response.json()
+        access_token = extract_access_token_from_response(first_response_data)
         
-        # Вторая попытка с теми же данными — должна упасть
         response = api_client.register_new_customer(new_user_credentials)
         response_data = response.json()
         
         assert response.status_code == 403, f"Ожидался 403, получен {response.status_code}"
         assert response_data.get("success") is False, "success должен быть False"
         assert response_data.get("message") == "User already exists", "Неверное сообщение об ошибке"
+        
+        if access_token:
+            api_client.delete_user(access_token)
 
     @allure.title("Регистрация с пропущенным обязательным полем возвращает 403 и сообщение о необходимости полей")
     @pytest.mark.parametrize("missing_field", ["email", "password", "name"])

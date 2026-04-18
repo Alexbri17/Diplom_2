@@ -7,13 +7,15 @@ from api.user_api import UserApiClient
 class TestUserAuthentication:
 
     @allure.title("Вход зарегистрированного пользователя — статус 200, возвращаются токены и данные пользователя")
-    def test_registered_user_can_login_and_receive_tokens(self, new_user_credentials, auth_payload):
+    def test_registered_user_can_login_and_receive_tokens(self, registered_user):
         api_client = UserApiClient()
+        credentials = registered_user["credentials"]
         
-        # Предварительная регистрация пользователя
-        api_client.register_new_customer(new_user_credentials)
+        auth_payload = {
+            "email": credentials["email"],
+            "password": credentials["password"]
+        }
         
-        # Выполнение входа
         response = api_client.authenticate_customer(auth_payload)
         
         assert response.status_code == 200, f"Ожидался 200, получен {response.status_code}"
@@ -23,8 +25,8 @@ class TestUserAuthentication:
         assert "accessToken" in response_data, "Отсутствует accessToken"
         assert "refreshToken" in response_data, "Отсутствует refreshToken"
         assert "user" in response_data, "Отсутствует объект user"
-        assert response_data["user"].get("email") == new_user_credentials["email"], "Email не совпадает"
-        assert response_data["user"].get("name") == new_user_credentials["name"], "Name не совпадает"
+        assert response_data["user"].get("email") == credentials["email"], "Email не совпадает"
+        assert response_data["user"].get("name") == credentials["name"], "Name не совпадает"
 
     @allure.title("Вход с неверными учётными данными возвращает статус 401 и сообщение об ошибке")
     @pytest.mark.parametrize("invalid_email,invalid_password", [

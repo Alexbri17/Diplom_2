@@ -2,7 +2,7 @@ import pytest
 import allure
 from api.user_api import UserApiClient
 from api.order_api import OrderApiClient
-from data import generate_unique_credentials
+from helpers import generate_unique_credentials, extract_access_token_from_response
 
 
 @pytest.fixture(scope="function", name="new_user_credentials")
@@ -11,17 +11,6 @@ def fixture_new_user_credentials():
     with allure.step("Генерация уникальных учётных данных пользователя"):
         credentials = generate_unique_credentials()
     return credentials
-
-
-@pytest.fixture(scope="function", name="auth_payload")
-def fixture_auth_payload(new_user_credentials):
-    """Фикстура: формирует payload для авторизации из данных пользователя."""
-    with allure.step("Подготовка данных для авторизации"):
-        auth_payload = {
-            "email": new_user_credentials["email"],
-            "password": new_user_credentials["password"]
-        }
-    return auth_payload
 
 
 @pytest.fixture(scope="function", name="user_api")
@@ -40,37 +29,60 @@ def fixture_order_api():
     return api_client
 
 
-@pytest.fixture(scope="function", name="access_token")
-def fixture_access_token(user_api, new_user_credentials, auth_payload):
+@pytest.fixture(scope="function", name="registered_user")
+def fixture_registered_user(user_api, new_user_credentials):
     """
-    Фикстура: создаёт пользователя, выполняет логин и возвращает токен доступа.
+    Фикстура: создаёт пользователя и возвращает его данные + токен.
+    Если пользователь уже существует — удаляет его и создаёт заново.
+    После теста пользователь удаляется.
     """
-    with allure.step("Регистрация нового пользователя"):
-        register_response = user_api.register_new_customer(new_user_credentials)
-        
-        # Если пользователь уже существует, пробуем просто войти
-        if register_response.status_code == 403:
-            allure.attach("Пользователь уже существует, пробуем войти", name="Registration skipped")
+    credentials = new_user_credentials
+    access_token = None
     
-    with allure.step("Авторизация пользователя"):
-        login_response = user_api.authenticate_customer(auth_payload)
+    with allure.step("Проверка, существует ли пользователь"):
+        login_response = user_api.authenticate_customer({
+            "email": credentials["email"],
+            "password": credentials["password"]
+        })
         
-        # Проверяем, что логин успешен
-        assert login_response.status_code == 200, \
-            f"Логин не удался. Статус: {login_response.status_code}, Тело: {login_response.text}"
+        if login_response.status_code == 200:
+            with allure.step("Пользователь существует — удаляем его"):
+                old_token = extract_access_token_from_response(login_response.json())
+                if old_token:
+                    user_api.delete_user(old_token)
+    
+    with allure.step("Регистрация нового пользователя"):
+        register_response = user_api.register_new_customer(credentials)
+        response_data = register_response.json()
         
-        response_data = login_response.json()
-        raw_token = response_data.get('accessToken')
-        
-        # Проверяем, что токен присутствует
-        assert raw_token is not None, \
-            f"accessToken отсутствует в ответе. Тело ответа: {response_data}"
-        
-        # Извлекаем токен из строки "Bearer <token>"
-        if 'Bearer ' in raw_token:
-            token = raw_token.split('Bearer ')[1]
-        else:
-            token = raw_token
-            
-    with allure.step(f"Получен токен: {token[:15]}..."):
-        return token
+        if register_response.status_code == 200:
+            access_token = extract_access_token_from_response(response_data)
+    
+    yield {
+        "credentials": credentials,
+        "access_token": access_token or "",
+        "response": register_response
+    }
+    
+    with allure.step("Удаление пользователя после теста"):
+        if access_token:
+            user_api.delete_user(access_token)
+
+
+@pytest.fixture(scope="function", name="access_token")
+def fixture_access_token(registered_user):
+    """Фикстура: возвращает только access_token зарегистрированного пользователя."""
+    return registered_user["access_token"]
+
+
+@pytest.fixture(scope="function", name="auth_payload")
+def fixture_auth_payload(new_user_credentials):
+    """
+    Фикстура: формирует payload для авторизации из данных пользователя.
+    """
+    with allure.step("Подготовка данных для авторизации"):
+        auth_payload = {
+            "email": new_user_credentials["email"],
+            "password": new_user_credentials["password"]
+        }
+    return auth_payload

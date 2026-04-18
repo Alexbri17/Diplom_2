@@ -1,1 +1,0 @@
-{"uuid": "ccbb3e75-c0fd-4f70-9384-4dc4b3c182ce", "children": ["22e7f3c6-f72e-418a-bd1a-8ba4fb43c96d"], "befores": [{"name": "auth_payload", "status": "passed", "steps": [{"name": "Подготовка данных для авторизации", "status": "passed", "start": 1776092247550, "stop": 1776092247550}], "start": 1776092247550, "stop": 1776092247550}], "start": 1776092247550, "stop": 1776092248247}

@@ -1,6 +1,5 @@
 import pytest
 import allure
-from api.order_api import OrderApiClient
 from data import VALID_INGREDIENT_IDS, INVALID_INGREDIENT_IDS, EMPTY_INGREDIENTS
 
 
