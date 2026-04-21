@@ -1,0 +1,1 @@
+{"uuid": "4d9f0e22-6985-476a-9ffd-094c1c3b8c3f", "children": ["fe31e586-086c-4f0b-99e9-6682863ec08a"], "befores": [{"name": "order_api", "status": "passed", "steps": [{"name": "Инициализация клиента Order API", "status": "passed", "start": 1776507777855, "stop": 1776507777855}], "start": 1776507777855, "stop": 1776507777855}], "start": 1776507777855, "stop": 1776507778253}
