@@ -1,15 +1,21 @@
 import pytest
 import allure
 from api.user_api import UserApiClient
+from helpers import generate_unique_credentials, extract_access_token_from_response
 
 
 @allure.suite("Аутентификация пользователей")
 class TestUserAuthentication:
 
     @allure.title("Вход зарегистрированного пользователя — статус 200, возвращаются токены и данные пользователя")
-    def test_registered_user_can_login_and_receive_tokens(self, registered_user):
+    def test_registered_user_can_login_and_receive_tokens(self, created_user):
+        """
+        Тест использует фикстуру created_user, которая:
+        - создаёт пользователя перед тестом
+        - удаляет пользователя после теста (даже при падении)
+        """
         api_client = UserApiClient()
-        credentials = registered_user["credentials"]
+        credentials = created_user["credentials"]
         
         auth_payload = {
             "email": credentials["email"],
